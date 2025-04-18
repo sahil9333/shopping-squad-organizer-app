@@ -1,78 +1,228 @@
 
-import React, { useState } from 'react';
-import { useToast } from "@/components/ui/use-toast";
+import { useState, useEffect } from 'react';
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/components/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
 import ShoppingList, { ShoppingListData } from '@/components/ShoppingList';
 import CreateListDialog from '@/components/CreateListDialog';
+import { Button } from "@/components/ui/button";
+import { LogOut } from 'lucide-react';
 
 const Index = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [lists, setLists] = useState<ShoppingListData[]>([]);
 
-  const handleCreateList = (title: string) => {
-    const newList: ShoppingListData = {
-      id: Date.now().toString(),
-      title,
-      items: [],
-    };
-    setLists([...lists, newList]);
+  useEffect(() => {
+    fetchLists();
+  }, []);
+
+  const fetchLists = async () => {
+    const { data, error } = await supabase
+      .from('shopping_lists')
+      .select(`
+        id,
+        title,
+        items:shopping_items (
+          id,
+          name,
+          quantity,
+          notes,
+          purchased
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch shopping lists",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLists(data || []);
+  };
+
+  const handleCreateList = async (title: string) => {
+    const { data, error } = await supabase
+      .from('shopping_lists')
+      .insert([{ title, user_id: user?.id }])
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create shopping list",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLists([{ ...data, items: [] }, ...lists]);
     toast({
-      title: "Shopping list created",
+      title: "Success",
       description: `${title} has been created successfully.`,
     });
   };
 
-  const handleEditList = (id: string) => {
-    // To be implemented in next iteration
+  const handleEditList = async (id: string, newTitle: string) => {
+    const { error } = await supabase
+      .from('shopping_lists')
+      .update({ title: newTitle })
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update shopping list",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLists(lists.map(list => 
+      list.id === id ? { ...list, title: newTitle } : list
+    ));
     toast({
-      title: "Coming soon",
-      description: "Edit functionality will be available soon!",
+      title: "Success",
+      description: "List updated successfully",
     });
   };
 
-  const handleDeleteList = (id: string) => {
+  const handleDeleteList = async (id: string) => {
+    const { error } = await supabase
+      .from('shopping_lists')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete shopping list",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLists(lists.filter(list => list.id !== id));
     toast({
-      title: "List deleted",
+      title: "Success",
       description: "Shopping list has been deleted.",
     });
   };
 
-  const handleDuplicateList = (id: string) => {
+  const handleDuplicateList = async (id: string) => {
     const listToDuplicate = lists.find(list => list.id === id);
-    if (listToDuplicate) {
-      const duplicatedList: ShoppingListData = {
-        ...listToDuplicate,
-        id: Date.now().toString(),
+    if (!listToDuplicate) return;
+
+    const { data: newList, error: listError } = await supabase
+      .from('shopping_lists')
+      .insert([{ 
         title: `${listToDuplicate.title} (Copy)`,
-      };
-      setLists([...lists, duplicatedList]);
+        user_id: user?.id
+      }])
+      .select()
+      .single();
+
+    if (listError || !newList) {
       toast({
-        title: "List duplicated",
-        description: `${listToDuplicate.title} has been duplicated.`,
+        title: "Error",
+        description: "Failed to duplicate list",
+        variant: "destructive",
       });
+      return;
     }
+
+    // Duplicate items
+    if (listToDuplicate.items.length > 0) {
+      const { error: itemsError } = await supabase
+        .from('shopping_items')
+        .insert(
+          listToDuplicate.items.map(item => ({
+            list_id: newList.id,
+            name: item.name,
+            quantity: item.quantity,
+            notes: item.notes,
+            purchased: item.purchased
+          }))
+        );
+
+      if (itemsError) {
+        toast({
+          title: "Error",
+          description: "Failed to duplicate list items",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    await fetchLists(); // Refresh the lists to get the new items
+    toast({
+      title: "Success",
+      description: `${listToDuplicate.title} has been duplicated.`,
+    });
   };
 
-  const handleToggleItem = (listId: string, itemId: string) => {
-    setLists(lists.map(list => {
-      if (list.id === listId) {
+  const handleToggleItem = async (listId: string, itemId: string) => {
+    const list = lists.find(l => l.id === listId);
+    if (!list) return;
+
+    const item = list.items.find(i => i.id === itemId);
+    if (!item) return;
+
+    const { error } = await supabase
+      .from('shopping_items')
+      .update({ purchased: !item.purchased })
+      .eq('id', itemId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update item status",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLists(lists.map(l => {
+      if (l.id === listId) {
         return {
-          ...list,
-          items: list.items.map(item => 
-            item.id === itemId ? { ...item, purchased: !item.purchased } : item
-          ),
+          ...l,
+          items: l.items.map(i => 
+            i.id === itemId ? { ...i, purchased: !i.purchased } : i
+          )
         };
       }
-      return list;
+      return l;
     }));
+  };
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
-          Shopping Lists
-        </h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-primary">ShopListia</h1>
+          <Button variant="ghost" onClick={handleSignOut}>
+            <LogOut className="mr-2" size={18} />
+            Sign Out
+          </Button>
+        </div>
+        
         {lists.length === 0 ? (
           <div className="text-center text-gray-500 mt-12">
             <p className="text-lg">No shopping lists yet</p>

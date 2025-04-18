@@ -2,8 +2,9 @@
 import React from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ListPlus, Copy, Trash2, Edit } from 'lucide-react';
+import { Copy, Trash2 } from 'lucide-react';
 import ShoppingListItem from './ShoppingListItem';
+import EditListDialog from './EditListDialog';
 
 export interface ShoppingItem {
   id: string;
@@ -21,7 +22,7 @@ export interface ShoppingListData {
 
 interface ShoppingListProps {
   list: ShoppingListData;
-  onEdit: (id: string) => void;
+  onEdit: (id: string, newTitle: string) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onToggleItem: (listId: string, itemId: string) => void;
@@ -40,14 +41,11 @@ const ShoppingList: React.FC<ShoppingListProps> = ({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-gray-800">{list.title}</h3>
           <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onEdit(list.id)}
-              className="text-gray-600 hover:text-primary"
-            >
-              <Edit size={18} />
-            </Button>
+            <EditListDialog
+              listId={list.id}
+              currentTitle={list.title}
+              onEdit={onEdit}
+            />
             <Button
               variant="ghost"
               size="icon"
