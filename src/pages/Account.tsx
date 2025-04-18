@@ -17,6 +17,7 @@ const Account = () => {
     email: user?.email || '',
     avatar_url: ''
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchProfile();
@@ -24,27 +25,56 @@ const Account = () => {
 
   const fetchProfile = async () => {
     if (!user) return;
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (error) {
+    
+    setLoading(true);
+    
+    try {
+      // First check if profile exists
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // If profile exists, use it
+      if (data && data.length > 0) {
+        setProfile({
+          display_name: data[0].display_name || '',
+          email: data[0].email || user.email || '',
+          avatar_url: data[0].avatar_url || ''
+        });
+      } else {
+        // If profile doesn't exist, create it
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([{ 
+            id: user.id,
+            email: user.email 
+          }]);
+        
+        if (insertError) {
+          throw insertError;
+        }
+        
+        // Set default profile with user email
+        setProfile({
+          display_name: '',
+          email: user.email || '',
+          avatar_url: ''
+        });
+      }
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to fetch profile",
+        description: error.message,
         variant: "destructive",
       });
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    setProfile({
-      display_name: data.display_name || '',
-      email: data.email || user.email || '',
-      avatar_url: data.avatar_url || ''
-    });
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -89,23 +119,27 @@ const Account = () => {
             </AvatarFallback>
           </Avatar>
         </div>
-        <form onSubmit={handleUpdateProfile} className="space-y-4">
-          <Input
-            placeholder="Display Name"
-            value={profile.display_name}
-            onChange={(e) => setProfile({...profile, display_name: e.target.value})}
-          />
-          <Input
-            placeholder="Email"
-            type="email"
-            value={profile.email}
-            onChange={(e) => setProfile({...profile, email: e.target.value})}
-            disabled
-          />
-          <Button type="submit" className="w-full">
-            Update Profile
-          </Button>
-        </form>
+        {loading ? (
+          <div className="text-center my-4">Loading profile...</div>
+        ) : (
+          <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <Input
+              placeholder="Display Name"
+              value={profile.display_name}
+              onChange={(e) => setProfile({...profile, display_name: e.target.value})}
+            />
+            <Input
+              placeholder="Email"
+              type="email"
+              value={profile.email}
+              onChange={(e) => setProfile({...profile, email: e.target.value})}
+              disabled
+            />
+            <Button type="submit" className="w-full">
+              Update Profile
+            </Button>
+          </form>
+        )}
         <div className="mt-4 text-center">
           <Button 
             variant="outline" 
