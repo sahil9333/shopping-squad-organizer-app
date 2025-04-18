@@ -11,17 +11,26 @@ export type Database = {
     Tables: {
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string | null
+          display_name: string | null
+          email: string | null
           id: string
           updated_at: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string | null
+          display_name?: string | null
+          email?: string | null
           id: string
           updated_at?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string | null
+          display_name?: string | null
+          email?: string | null
           id?: string
           updated_at?: string | null
         }
@@ -34,6 +43,8 @@ export type Database = {
           list_id: string
           name: string
           notes: string | null
+          price: number | null
+          purchase_date: string | null
           purchased: boolean | null
           quantity: string | null
           updated_at: string | null
@@ -44,6 +55,8 @@ export type Database = {
           list_id: string
           name: string
           notes?: string | null
+          price?: number | null
+          purchase_date?: string | null
           purchased?: boolean | null
           quantity?: string | null
           updated_at?: string | null
@@ -54,6 +67,8 @@ export type Database = {
           list_id?: string
           name?: string
           notes?: string | null
+          price?: number | null
+          purchase_date?: string | null
           purchased?: boolean | null
           quantity?: string | null
           updated_at?: string | null

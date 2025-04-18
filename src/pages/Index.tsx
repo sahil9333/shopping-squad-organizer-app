@@ -6,12 +6,14 @@ import { supabase } from "@/integrations/supabase/client";
 import ShoppingList, { ShoppingListData } from '@/components/ShoppingList';
 import CreateListDialog from '@/components/CreateListDialog';
 import { Button } from "@/components/ui/button";
-import { LogOut } from 'lucide-react';
+import { LogOut, UserCog } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [lists, setLists] = useState<ShoppingListData[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchLists();
@@ -28,6 +30,8 @@ const Index = () => {
           name,
           quantity,
           notes,
+          price,
+          purchase_date,
           purchased
         )
       `)
@@ -212,15 +216,25 @@ const Index = () => {
     }
   };
 
+  const handleAccountManagement = () => {
+    navigate('/account');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-primary">ShopListia</h1>
-          <Button variant="ghost" onClick={handleSignOut}>
-            <LogOut className="mr-2" size={18} />
-            Sign Out
-          </Button>
+          <div className="flex space-x-2">
+            <Button variant="ghost" onClick={handleAccountManagement}>
+              <UserCog className="mr-2" size={18} />
+              Account
+            </Button>
+            <Button variant="ghost" onClick={handleSignOut}>
+              <LogOut className="mr-2" size={18} />
+              Sign Out
+            </Button>
+          </div>
         </div>
         
         {lists.length === 0 ? (
@@ -238,6 +252,7 @@ const Index = () => {
                 onDelete={handleDeleteList}
                 onDuplicate={handleDuplicateList}
                 onToggleItem={handleToggleItem}
+                onRefreshList={fetchLists}
               />
             ))}
           </div>

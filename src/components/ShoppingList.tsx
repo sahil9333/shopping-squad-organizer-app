@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Copy, Trash2 } from 'lucide-react';
 import ShoppingListItem from './ShoppingListItem';
 import EditListDialog from './EditListDialog';
+import AddItemDialog from './AddItemDialog'; // New import
 
 export interface ShoppingItem {
   id: string;
   name: string;
   quantity: string;
   notes?: string;
+  price?: number | null;
+  purchase_date?: string | null;
   purchased: boolean;
 }
 
@@ -26,6 +29,7 @@ interface ShoppingListProps {
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onToggleItem: (listId: string, itemId: string) => void;
+  onRefreshList: () => void; // New prop
 }
 
 const ShoppingList: React.FC<ShoppingListProps> = ({
@@ -34,6 +38,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({
   onDelete,
   onDuplicate,
   onToggleItem,
+  onRefreshList, // Added
 }) => {
   return (
     <Card className="w-full max-w-md mx-auto bg-white shadow-lg rounded-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
@@ -64,7 +69,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({
             </Button>
           </div>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 mb-4">
           {list.items.map((item) => (
             <ShoppingListItem
               key={item.id}
@@ -73,6 +78,10 @@ const ShoppingList: React.FC<ShoppingListProps> = ({
             />
           ))}
         </div>
+        <AddItemDialog 
+          listId={list.id} 
+          onItemAdded={onRefreshList} 
+        />
       </div>
     </Card>
   );
