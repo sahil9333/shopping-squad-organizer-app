@@ -18,6 +18,7 @@ const Account = () => {
     avatar_url: ''
   });
   const [loading, setLoading] = useState(true);
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -33,40 +34,43 @@ const Account = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .single();
       
       if (error) {
-        throw error;
-      }
-      
-      // If profile exists, use it
-      if (data && data.length > 0) {
-        setProfile({
-          display_name: data[0].display_name || '',
-          email: data[0].email || user.email || '',
-          avatar_url: data[0].avatar_url || ''
-        });
-      } else {
-        // If profile doesn't exist, create it
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert([{ 
-            id: user.id,
-            email: user.email 
-          }]);
-        
-        if (insertError) {
-          throw insertError;
+        // If the error is because no rows were returned, create a profile
+        if (error.code === 'PGRST116') {
+          // Create a new profile
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert([{ 
+              id: user.id,
+              email: user.email 
+            }]);
+          
+          if (insertError) {
+            throw insertError;
+          }
+          
+          // Set default profile with user email
+          setProfile({
+            display_name: '',
+            email: user.email || '',
+            avatar_url: ''
+          });
+        } else {
+          throw error;
         }
-        
-        // Set default profile with user email
+      } else {
+        // Profile exists, use it
         setProfile({
-          display_name: '',
-          email: user.email || '',
-          avatar_url: ''
+          display_name: data.display_name || '',
+          email: data.email || user.email || '',
+          avatar_url: data.avatar_url || ''
         });
       }
     } catch (error: any) {
+      console.error('Error fetching profile:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -79,28 +83,54 @@ const Account = () => {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUpdateLoading(true);
     
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          display_name: profile.display_name,
-          email: profile.email
-        })
-        .eq('id', user?.id);
+      if (!user) throw new Error("User not authenticated");
 
-      if (error) throw error;
+      // Check if profile exists first
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (checkError && checkError.code === 'PGRST116') {
+        // Profile doesn't exist, insert new one
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([{ 
+            id: user.id,
+            display_name: profile.display_name,
+            email: user.email
+          }]);
+        
+        if (insertError) throw insertError;
+      } else {
+        // Profile exists, update it
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            display_name: profile.display_name
+          })
+          .eq('id', user.id);
+        
+        if (updateError) throw updateError;
+      }
 
       toast({
         title: "Success",
         description: "Profile updated successfully",
       });
     } catch (error: any) {
+      console.error('Profile update error:', error);
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
@@ -123,20 +153,33 @@ const Account = () => {
           <div className="text-center my-4">Loading profile...</div>
         ) : (
           <form onSubmit={handleUpdateProfile} className="space-y-4">
-            <Input
-              placeholder="Display Name"
-              value={profile.display_name}
-              onChange={(e) => setProfile({...profile, display_name: e.target.value})}
-            />
-            <Input
-              placeholder="Email"
-              type="email"
-              value={profile.email}
-              onChange={(e) => setProfile({...profile, email: e.target.value})}
-              disabled
-            />
-            <Button type="submit" className="w-full">
-              Update Profile
+            <div>
+              <label htmlFor="display-name" className="block text-sm font-medium text-gray-700 mb-1">
+                Display Name
+              </label>
+              <Input
+                id="display-name"
+                placeholder="Display Name"
+                value={profile.display_name}
+                onChange={(e) => setProfile({...profile, display_name: e.target.value})}
+              />
+            </div>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <Input
+                id="email"
+                placeholder="Email"
+                type="email"
+                value={profile.email}
+                onChange={(e) => setProfile({...profile, email: e.target.value})}
+                disabled
+              />
+              <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+            </div>
+            <Button type="submit" className="w-full" disabled={updateLoading}>
+              {updateLoading ? "Updating..." : "Update Profile"}
             </Button>
           </form>
         )}

@@ -14,7 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus } from 'lucide-react';
+import { Plus, CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 
@@ -134,9 +134,11 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ listId, onItemAdded }) =>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full justify-start text-left"
+                  className="w-full justify-start text-left font-normal"
+                  type="button"
                 >
                   {purchaseDate ? format(purchaseDate, 'PPP') : <span>Pick a date</span>}
+                  <CalendarIcon className="ml-auto h-4 w-4 opacity-70" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -148,6 +150,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ listId, onItemAdded }) =>
                     setCalendarOpen(false);
                   }}
                   initialFocus
+                  className="pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
