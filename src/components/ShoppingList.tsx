@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Copy, Trash2 } from 'lucide-react';
 import ShoppingListItem from './ShoppingListItem';
 import EditListDialog from './EditListDialog';
-import AddItemDialog from './AddItemDialog'; // New import
+import AddItemDialog from './AddItemDialog';
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export interface ShoppingItem {
   id: string;
@@ -29,7 +31,7 @@ interface ShoppingListProps {
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onToggleItem: (listId: string, itemId: string) => void;
-  onRefreshList: () => void; // New prop
+  onRefreshList: () => void;
 }
 
 const ShoppingList: React.FC<ShoppingListProps> = ({
@@ -38,8 +40,15 @@ const ShoppingList: React.FC<ShoppingListProps> = ({
   onDelete,
   onDuplicate,
   onToggleItem,
-  onRefreshList, // Added
+  onRefreshList,
 }) => {
+  const { toast } = useToast();
+  
+  const handleDeleteItem = (itemId: string) => {
+    // Filter out the deleted item from the list
+    onRefreshList();
+  };
+
   return (
     <Card className="w-full max-w-md mx-auto bg-white shadow-lg rounded-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
       <div className="p-4">
@@ -75,6 +84,8 @@ const ShoppingList: React.FC<ShoppingListProps> = ({
               key={item.id}
               item={item}
               onToggle={() => onToggleItem(list.id, item.id)}
+              onDelete={handleDeleteItem}
+              onUpdate={onRefreshList}
             />
           ))}
         </div>

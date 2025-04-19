@@ -38,9 +38,8 @@ const Account = () => {
         .single();
       
       if (error) {
-        // If the error is because no rows were returned, create a profile
         if (error.code === 'PGRST116') {
-          // Create a new profile
+          // Profile doesn't exist, create a new one
           const { error: insertError } = await supabase
             .from('profiles')
             .insert([{ 
@@ -48,9 +47,7 @@ const Account = () => {
               email: user.email 
             }]);
           
-          if (insertError) {
-            throw insertError;
-          }
+          if (insertError) throw insertError;
           
           // Set default profile with user email
           setProfile({
@@ -88,35 +85,16 @@ const Account = () => {
     try {
       if (!user) throw new Error("User not authenticated");
 
-      // Check if profile exists first
-      const { data: existingProfile, error: checkError } = await supabase
+      // Run an upsert operation - update if exists, insert if not
+      const { error } = await supabase
         .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-
-      if (checkError && checkError.code === 'PGRST116') {
-        // Profile doesn't exist, insert new one
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert([{ 
-            id: user.id,
-            display_name: profile.display_name,
-            email: user.email
-          }]);
-        
-        if (insertError) throw insertError;
-      } else {
-        // Profile exists, update it
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            display_name: profile.display_name
-          })
-          .eq('id', user.id);
-        
-        if (updateError) throw updateError;
-      }
+        .upsert({ 
+          id: user.id,
+          display_name: profile.display_name,
+          email: user.email
+        }, { onConflict: 'id' });
+      
+      if (error) throw error;
 
       toast({
         title: "Success",

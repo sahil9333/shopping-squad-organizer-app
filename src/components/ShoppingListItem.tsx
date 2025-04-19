@@ -3,13 +3,56 @@ import React from 'react';
 import { Checkbox } from "@/components/ui/checkbox";
 import type { ShoppingItem } from './ShoppingList';
 import { format } from 'date-fns';
+import { Button } from "@/components/ui/button";
+import { Trash2 } from 'lucide-react';
+import EditItemDialog from './EditItemDialog';
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ShoppingListItemProps {
   item: ShoppingItem;
   onToggle: () => void;
+  onDelete: (id: string) => void;
+  onUpdate: () => void;
 }
 
-const ShoppingListItem: React.FC<ShoppingListItemProps> = ({ item, onToggle }) => {
+const ShoppingListItem: React.FC<ShoppingListItemProps> = ({ 
+  item, 
+  onToggle, 
+  onDelete,
+  onUpdate 
+}) => {
+  const { toast } = useToast();
+  
+  const handleDelete = async () => {
+    try {
+      const { error } = await supabase
+        .from('shopping_items')
+        .delete()
+        .eq('id', item.id);
+        
+      if (error) throw error;
+      
+      onDelete(item.id);
+      toast({
+        title: "Success",
+        description: "Item deleted successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-md group">
       <Checkbox
@@ -33,6 +76,38 @@ const ShoppingListItem: React.FC<ShoppingListItemProps> = ({ item, onToggle }) =
             {format(new Date(item.purchase_date), 'PP')}
           </p>
         )}
+      </div>
+      <div className="flex space-x-1">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <EditItemDialog item={item} onItemUpdated={onUpdate} />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Edit Item</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleDelete}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
+              >
+                <Trash2 size={16} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Delete Item</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );
