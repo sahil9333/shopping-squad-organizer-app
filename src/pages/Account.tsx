@@ -21,7 +21,9 @@ const Account = () => {
   const [updateLoading, setUpdateLoading] = useState(false);
 
   useEffect(() => {
-    fetchProfile();
+    if (user) {
+      fetchProfile();
+    }
   }, [user]);
 
   const fetchProfile = async () => {
@@ -30,7 +32,6 @@ const Account = () => {
     setLoading(true);
     
     try {
-      // First check if profile exists
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -38,26 +39,13 @@ const Account = () => {
         .single();
       
       if (error) {
-        if (error.code === 'PGRST116') {
-          // Profile doesn't exist, create a new one
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert([{ 
-              id: user.id,
-              email: user.email 
-            }]);
-          
-          if (insertError) throw insertError;
-          
-          // Set default profile with user email
-          setProfile({
-            display_name: '',
-            email: user.email || '',
-            avatar_url: ''
-          });
-        } else {
-          throw error;
-        }
+        console.log('Error fetching profile:', error);
+        // Set default profile with user email if no profile exists
+        setProfile({
+          display_name: '',
+          email: user.email || '',
+          avatar_url: ''
+        });
       } else {
         // Profile exists, use it
         setProfile({
@@ -67,12 +55,7 @@ const Account = () => {
         });
       }
     } catch (error: any) {
-      console.error('Error fetching profile:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      console.error('Error in fetch profile operation:', error);
     } finally {
       setLoading(false);
     }
@@ -85,16 +68,35 @@ const Account = () => {
     try {
       if (!user) throw new Error("User not authenticated");
 
-      // Run an upsert operation - update if exists, insert if not
-      const { error } = await supabase
+      // First check if profile exists
+      const { data, error } = await supabase
         .from('profiles')
-        .upsert({ 
-          id: user.id,
-          display_name: profile.display_name,
-          email: user.email
-        }, { onConflict: 'id' });
+        .select('id')
+        .eq('id', user.id)
+        .single();
       
-      if (error) throw error;
+      if (error) {
+        // Profile doesn't exist, create a new one
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([{ 
+            id: user.id,
+            display_name: profile.display_name,
+            email: user.email
+          }]);
+        
+        if (insertError) throw insertError;
+      } else {
+        // Profile exists, update it
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            display_name: profile.display_name
+          })
+          .eq('id', user.id);
+        
+        if (updateError) throw updateError;
+      }
 
       toast({
         title: "Success",
