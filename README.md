@@ -1,4 +1,4 @@
-# Welcome to your Lovable project
+# WELCOME TO THE SHOPLISTIA
 
 ## Project info
 
